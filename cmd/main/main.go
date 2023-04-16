@@ -1,11 +1,16 @@
 package main
 
 import (
+	"fmt"
+	"go-backend/internal/config"
 	"go-backend/internal/user"
 	"go-backend/pkg/logger"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -22,16 +27,27 @@ func main() {
 	start(router, logger)
 }
 
-func start(router *httprouter.Router, logger logger.Logger) {
-	router.GET("/", func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-		w.Write([]byte("hello"))
-	})
+func start(router *httprouter.Router, logger *logger.Logger) {
+	var listenerErr error
+	var listener net.Listener
+	cfg := config.GetConfig()
 
-	listener, err := net.Listen("tcp", "0.0.0.0:1234")
+	if cfg.Server.Type == "sock" {
+		appDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+		if err != nil {
+			logger.Fatalln(err)
+		}
+		socketPath := path.Join(appDir, "app.sock")
+		logger.Debugf("Create socket. Socket path: %s", socketPath)
+		logger.Info("Create unix socket")
+		listener, listenerErr = net.Listen("unix", socketPath)
+	} else {
+		logger.Info("Create tcp listener")
+		listener, listenerErr = net.Listen("tcp", fmt.Sprintf("%s:%s", cfg.Server.BindIp, cfg.Server.Port))
+	}
 
-	if err != nil {
-		logger.Error("listener cant started")
-		panic(err)
+	if listenerErr != nil {
+		logger.Fatalln(listenerErr)
 	}
 
 	server := &http.Server{
@@ -40,6 +56,6 @@ func start(router *httprouter.Router, logger logger.Logger) {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	logger.Info("Server start on 0.0.0.0:1234")
+	logger.Info("Server start on %s:%s", cfg.Server.BindIp, cfg.Server.Port)
 	log.Fatalln(server.Serve(listener))
 }
