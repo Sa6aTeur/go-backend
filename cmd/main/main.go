@@ -32,7 +32,7 @@ func start(router *httprouter.Router, logger *logger.Logger) {
 	var listener net.Listener
 	cfg := config.GetConfig()
 
-	if cfg.Server.Type == "sock" {
+	if cfg.Listen.Type == "sock" {
 		appDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 		if err != nil {
 			logger.Fatalln(err)
@@ -43,7 +43,7 @@ func start(router *httprouter.Router, logger *logger.Logger) {
 		listener, listenerErr = net.Listen("unix", socketPath)
 	} else {
 		logger.Info("Create tcp listener")
-		listener, listenerErr = net.Listen("tcp", fmt.Sprintf("%s:%s", cfg.Server.BindIp, cfg.Server.Port))
+		listener, listenerErr = net.Listen("tcp", fmt.Sprintf("%s:%s", cfg.Listen.BindIP, cfg.Listen.Port))
 	}
 
 	if listenerErr != nil {
@@ -56,6 +56,6 @@ func start(router *httprouter.Router, logger *logger.Logger) {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	logger.Info("Server start on %s:%s", cfg.Server.BindIp, cfg.Server.Port)
+	logger.Infof("Server start on %s:%s", cfg.Listen.BindIP, cfg.Listen.Port)
 	log.Fatalln(server.Serve(listener))
 }
